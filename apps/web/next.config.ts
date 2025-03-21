@@ -7,6 +7,15 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: 'http://localhost:3001/:path*', // Proxy to NestJS backend
+      },
+    ];
+  },
+  
 };
 
 export default nextConfig;
