@@ -1,6 +1,15 @@
-import { Controller, Get, Post, Body, Param } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Patch,
+  UseGuards,
+} from '@nestjs/common';
 import { AdsService } from './ads.service';
 import { Ad } from './ad.schema';
+import { AuthGuard } from '@nestjs/passport';
 
 @Controller('ads')
 export class AdsController {
@@ -19,5 +28,17 @@ export class AdsController {
   @Get('ad-group/:adGroupId')
   findByAdGroup(@Param('adGroupId') adGroupId: string): Promise<Ad[]> {
     return this.adsService.findByAdGroup(adGroupId);
+  }
+
+  @Patch(':id/impression')
+  @UseGuards(AuthGuard('jwt'))
+  incrementImpression(@Param('id') id: string) {
+    return this.adsService.incrementImpression(id);
+  }
+
+  @Patch(':id/click')
+  @UseGuards(AuthGuard('jwt'))
+  incrementClick(@Param('id') id: string) {
+    return this.adsService.incrementClick(id);
   }
 }

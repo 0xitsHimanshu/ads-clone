@@ -19,4 +19,16 @@ export class AdsService {
   async findByAdGroup(adGroupId: string): Promise<Ad[]> {
     return this.adModel.find({ adGroupId }).populate('adGroupId').exec();
   }
+
+  async incrementImpression(id: string) {
+    return this.adModel
+      .findByIdAndUpdate(id, { $inc: { impressions: 1 } }, { new: true })
+      .exec();
+  }
+
+  async incrementClick(id: string) {
+    return this.adModel
+      .findByIdAndUpdate(id, { $inc: { clicks: 1 } }, { new: true })
+      .exec();
+  }
 }
