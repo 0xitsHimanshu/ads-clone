@@ -1,3 +1,5 @@
+// @app/components/AdsSection.tsx
+
 "use client";
 
 import type React from "react";
@@ -58,6 +60,8 @@ export default function AdsSection({ openModal }: AdsSectionProps) {
   const [adGroups, setAdGroups] = useState<AdGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [editingAd, setEditingAd] = useState<Ad | null>(null);
+  const [deletingAd, setDeletingAd] = useState<Ad | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -75,9 +79,7 @@ export default function AdsSection({ openModal }: AdsSectionProps) {
         const adsData = await adsRes.json();
         setAds(adsData);
         setAdGroups(await adGroupsRes.json());
-
-        // Track impressions for all ads on load
-        adsData.forEach((ad: Ad) => trackImpression(ad._id));
+        
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -191,6 +193,180 @@ export default function AdsSection({ openModal }: AdsSectionProps) {
         </p>
       </div>,
       ad.title
+    );
+  };
+
+  const handleEditAd = (ad: Ad) => {
+    setEditingAd(ad);
+    openModal(
+      <form onSubmit={handleUpdateAd} className="space-y-4 py-4">
+        <div className="space-y-2">
+          <Label htmlFor="title">Ad Title</Label>
+          <Input
+            id="title"
+            name="title"
+            defaultValue={ad.title}
+            placeholder="Enter ad title"
+            className="rounded-none border-black/20 focus-visible:ring-0 focus-visible:border-black"
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="description">Ad Description</Label>
+          <Input
+            id="description"
+            name="description"
+            defaultValue={ad.description}
+            placeholder="Enter ad description"
+            className="rounded-none border-black/20 focus-visible:ring-0 focus-visible:border-black"
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="targetUrl">Target URL</Label>
+          <Input
+            id="targetUrl"
+            name="targetUrl"
+            type="url"
+            defaultValue={ad.targetUrl}
+            placeholder="https://example.com"
+            className="rounded-none border-black/20 focus-visible:ring-0 focus-visible:border-black"
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="maxCpc">Max CPC ($)</Label>
+          <Input
+            id="maxCpc"
+            name="maxCpc"
+            type="number"
+            step="0.01"
+            min="0.01"
+            defaultValue={ad.maxCpc}
+            placeholder="0.50"
+            className="rounded-none border-black/20 focus-visible:ring-0 focus-visible:border-black"
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="adGroupId">Ad Group</Label>
+          <select
+            id="adGroupId"
+            name="adGroupId"
+            defaultValue={
+              typeof ad.adGroupId === "string" ? ad.adGroupId : ad.adGroupId._id
+            }
+            className="flex h-10 w-full rounded-none border border-black/20 bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-black disabled:cursor-not-allowed disabled:opacity-50"
+            required
+          >
+            <option value="">Select Ad Group</option>
+            {adGroups.map((adGroup) => (
+              <option key={adGroup._id} value={adGroup._id}>
+                {adGroup.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="pt-4">
+          <Button
+            type="submit"
+            className="w-full rounded-none bg-black text-white hover:bg-black/90"
+          >
+            Update Ad
+          </Button>
+        </div>
+      </form>,
+      "Edit Ad"
+    );
+  };
+
+  const handleUpdateAd = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!editingAd) return;
+    const formData = new FormData(e.currentTarget);
+    const updatedAdData = {
+      title: formData.get("title") as string,
+      description: formData.get("description") as string,
+      targetUrl: formData.get("targetUrl") as string,
+      maxCpc: Number(formData.get("maxCpc")),
+      adGroupId: formData.get("adGroupId") as string,
+    };
+
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`/api/ads/${editingAd._id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(updatedAdData),
+      });
+      if (!response.ok) throw new Error("Failed to update ad");
+      const updatedAd: Ad = await response.json();
+      setAds(ads.map((ad) => (ad._id === updatedAd._id ? updatedAd : ad)));
+      setEditingAd(null);
+      openModal(null);
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const handleDeleteAd = (ad: Ad) => {
+    setDeletingAd(ad);
+    openModal(
+      <div className="py-4">
+        <p>Are you sure you want to delete this ad?</p>
+        <div className="flex justify-end space-x-2 mt-4">
+          <Button variant="outline" onClick={() => openModal(null)}>
+            Cancel
+          </Button>
+          <Button variant="destructive" onClick={confirmDeleteAd}>
+            Delete
+          </Button>
+        </div>
+      </div>,
+      "Confirm Deletion"
+    );
+  };
+
+  const confirmDeleteAd = async () => {
+    if (!deletingAd) return;
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`/api/ads/${deletingAd._id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error("Failed to delete ad");
+      setAds(ads.filter((ad) => ad._id !== deletingAd._id));
+      setDeletingAd(null);
+      openModal(null);
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const handlePreviewAd = (ad: Ad) => {
+    trackImpression(ad._id);
+    openModal(
+      <div className="py-4">
+        <h3 className="font-medium mb-2">Ad Preview</h3>
+        <div className="border p-4 rounded-sm bg-white">
+          <h4 className="text-lg font-semibold">{ad.title}</h4>
+          <p className="text-sm text-gray-600">{ad.description}</p>
+          <a
+            href={ad.targetUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:underline"
+            onClick={() => trackClick(ad._id)}
+          >
+            {ad.targetUrl}
+          </a>
+        </div>
+      </div>,
+      "Ad Preview"
     );
   };
 
@@ -366,7 +542,11 @@ export default function AdsSection({ openModal }: AdsSectionProps) {
                         <Eye className="mr-2 h-4 w-4" />
                         <span>View</span>
                       </DropdownMenuItem>
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handlePreviewAd(ad)}>
+                        <Eye className="mr-2 h-4 w-4" />
+                        <span>Preview</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleEditAd(ad)}>
                         <Edit className="mr-2 h-4 w-4" />
                         <span>Edit</span>
                       </DropdownMenuItem>
@@ -382,7 +562,10 @@ export default function AdsSection({ openModal }: AdsSectionProps) {
                           Visit URL
                         </a>
                       </DropdownMenuItem>
-                      <DropdownMenuItem className="text-red-600">
+                      <DropdownMenuItem
+                        className="text-red-600"
+                        onClick={() => handleDeleteAd(ad)}
+                      >
                         <Trash className="mr-2 h-4 w-4" />
                         <span>Delete</span>
                       </DropdownMenuItem>

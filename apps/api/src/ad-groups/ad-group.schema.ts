@@ -1,3 +1,4 @@
+// @src/ad-groups/ad-group-schema.ts  
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 

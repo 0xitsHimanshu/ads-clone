@@ -1,7 +1,8 @@
+// @app/components/AdsGroupSection.tsx
+
 "use client";
 
 import type React from "react";
-
 import { useState, useEffect } from "react";
 import {
   Table,
@@ -50,6 +51,8 @@ export default function AdGroupsSection({ openModal }: AdGroupsSectionProps) {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [editingAdGroup, setEditingAdGroup] = useState<AdGroup | null>(null);
+  const [deletingAdGroup, setDeletingAdGroup] = useState<AdGroup | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -105,6 +108,77 @@ export default function AdGroupsSection({ openModal }: AdGroupsSectionProps) {
     }
   };
 
+  const handleUpdateAdGroup = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!editingAdGroup) return;
+    const formData = new FormData(e.currentTarget);
+    const updatedAdGroupData = {
+      name: formData.get("name") as string,
+      campaignId: formData.get("campaignId") as string,
+      keywords: (formData.get("keywords") as string)
+        .split(",")
+        .map((kw) => kw.trim()),
+    };
+
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`/api/ad-groups/${editingAdGroup._id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(updatedAdGroupData),
+      });
+      if (!response.ok) throw new Error("Failed to update ad group");
+      const updatedAdGroup: AdGroup = await response.json();
+      setAdGroups(
+        adGroups.map((ag) =>
+          ag._id === updatedAdGroup._id ? updatedAdGroup : ag
+        )
+      );
+      setEditingAdGroup(null);
+      openModal(null);
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const handleDeleteAdGroup = (adGroup: AdGroup) => {
+    setDeletingAdGroup(adGroup);
+    openModal(
+      <div className="py-4">
+        <p>Are you sure you want to delete this ad group?</p>
+        <div className="flex justify-end space-x-2 mt-4">
+          <Button variant="outline" onClick={() => openModal(null)}>
+            Cancel
+          </Button>
+          <Button variant="destructive" onClick={confirmDeleteAdGroup}>
+            Delete
+          </Button>
+        </div>
+      </div>,
+      "Confirm Deletion"
+    );
+  };
+
+  const confirmDeleteAdGroup = async () => {
+    if (!deletingAdGroup) return;
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`/api/ad-groups/${deletingAdGroup._id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error("Failed to delete ad group");
+      setAdGroups(adGroups.filter((ag) => ag._id !== deletingAdGroup._id));
+      setDeletingAdGroup(null);
+      openModal(null);
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
   const handleViewAdGroup = (adGroup: AdGroup) => {
     const campaignName =
       typeof adGroup.campaignId === "string"
@@ -154,7 +228,6 @@ export default function AdGroupsSection({ openModal }: AdGroupsSectionProps) {
             required
           />
         </div>
-
         <div className="space-y-2">
           <Label htmlFor="campaignId">Campaign</Label>
           <select
@@ -171,7 +244,6 @@ export default function AdGroupsSection({ openModal }: AdGroupsSectionProps) {
             ))}
           </select>
         </div>
-
         <div className="space-y-2">
           <Label htmlFor="keywords">Keywords (comma-separated)</Label>
           <Input
@@ -182,7 +254,6 @@ export default function AdGroupsSection({ openModal }: AdGroupsSectionProps) {
             required
           />
         </div>
-
         <div className="pt-4">
           <Button
             type="submit"
@@ -193,6 +264,66 @@ export default function AdGroupsSection({ openModal }: AdGroupsSectionProps) {
         </div>
       </form>,
       "Create New Ad Group"
+    );
+  };
+
+  const openEditAdGroupModal = (adGroup: AdGroup) => {
+    setEditingAdGroup(adGroup);
+    openModal(
+      <form onSubmit={handleUpdateAdGroup} className="space-y-4 py-4">
+        <div className="space-y-2">
+          <Label htmlFor="name">Ad Group Name</Label>
+          <Input
+            id="name"
+            name="name"
+            defaultValue={adGroup.name}
+            placeholder="Enter ad group name"
+            className="rounded-none border-black/20 focus-visible:ring-0 focus-visible:border-black"
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="campaignId">Campaign</Label>
+          <select
+            id="campaignId"
+            name="campaignId"
+            defaultValue={
+              typeof adGroup.campaignId === "string"
+                ? adGroup.campaignId
+                : adGroup.campaignId._id
+            }
+            className="flex h-10 w-full rounded-none border border-black/20 bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-black disabled:cursor-not-allowed disabled:opacity-50"
+            required
+          >
+            <option value="">Select Campaign</option>
+            {campaigns.map((campaign) => (
+              <option key={campaign._id} value={campaign._id}>
+                {campaign.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="keywords">Keywords (comma-separated)</Label>
+          <Input
+            id="keywords"
+            name="keywords"
+            defaultValue={adGroup.keywords.join(", ")}
+            placeholder="e.g. marketing, digital ads, promotion"
+            className="rounded-none border-black/20 focus-visible:ring-0 focus-visible:border-black"
+            required
+          />
+        </div>
+        <div className="pt-4">
+          <Button
+            type="submit"
+            className="w-full rounded-none bg-black text-white hover:bg-black/90"
+          >
+            Update Ad Group
+          </Button>
+        </div>
+      </form>,
+      "Edit Ad Group"
     );
   };
 
@@ -234,9 +365,7 @@ export default function AdGroupsSection({ openModal }: AdGroupsSectionProps) {
           Create Ad Group
         </Button>
       </div>
-
       <Separator className="my-4" />
-
       {adGroups.length > 0 ? (
         <Table>
           <TableHeader>
@@ -291,11 +420,16 @@ export default function AdGroupsSection({ openModal }: AdGroupsSectionProps) {
                         <Eye className="mr-2 h-4 w-4" />
                         <span>View</span>
                       </DropdownMenuItem>
-                      <DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => openEditAdGroupModal(adGroup)}
+                      >
                         <Edit className="mr-2 h-4 w-4" />
                         <span>Edit</span>
                       </DropdownMenuItem>
-                      <DropdownMenuItem className="text-red-600">
+                      <DropdownMenuItem
+                        className="text-red-600"
+                        onClick={() => handleDeleteAdGroup(adGroup)}
+                      >
                         <Trash className="mr-2 h-4 w-4" />
                         <span>Delete</span>
                       </DropdownMenuItem>

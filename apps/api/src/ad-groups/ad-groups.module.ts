@@ -1,3 +1,5 @@
+// @src/ad-groups/ad-groups-module.ts
+
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AdGroupsController } from './ad-groups.controller';

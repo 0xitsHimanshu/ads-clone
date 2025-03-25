@@ -1,3 +1,5 @@
+// @src/ads/ads.service.ts
+
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -30,5 +32,23 @@ export class AdsService {
     return this.adModel
       .findByIdAndUpdate(id, { $inc: { clicks: 1 } }, { new: true })
       .exec();
+  }
+
+  async delete(id: string): Promise<Ad> {
+    const deletedAd = await this.adModel.findByIdAndDelete(id).exec();
+    if (!deletedAd) {
+      throw new Error(`Ad with ID ${id} not found`);
+    }
+    return deletedAd; 
+  }
+
+  async update(id: string, adDto: Partial<Ad>): Promise<Ad> {
+    const updatedAd = await this.adModel
+      .findByIdAndUpdate(id, adDto, { new: true })
+      .exec();
+    if (!updatedAd) {
+      throw new Error(`Ad with ID ${id} not found`);
+    }
+    return updatedAd;
   }
 }

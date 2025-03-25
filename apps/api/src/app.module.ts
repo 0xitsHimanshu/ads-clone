@@ -1,3 +1,5 @@
+// @src/app.module.ts
+
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -6,6 +8,10 @@ import { CampaignsModule } from './campaigns/campaigns.module';
 import { AdGroupsModule } from './ad-groups/ad-groups.module';
 import { AdsModule } from './ads/ads.module';
 import { AuthModule } from './auth/auth.module';
+import { AnalyticsModule } from './analytics/analytics.module';
+import { ProfileController } from './profile/profile.controller';
+import { ProfileModule } from './profile/profile.module';
+import { BillingModule } from './billing/billing.module';
 
 @Module({
   imports: [
@@ -15,9 +21,12 @@ import { AuthModule } from './auth/auth.module';
     CampaignsModule,
     AdGroupsModule,
     AdsModule,
-    AuthModule
+    AuthModule,
+    AnalyticsModule,
+    ProfileModule,
+    BillingModule
   ],
-  controllers: [AppController],
+  controllers: [AppController, ProfileController],
   providers: [AppService],
 })
 export class AppModule {}

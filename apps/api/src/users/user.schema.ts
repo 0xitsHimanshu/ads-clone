@@ -7,7 +7,28 @@ export class User extends Document {
   email: string;
 
   @Prop({ required: true })
-  password: string; // Will be hashed
+  password: string;
+
+  @Prop()
+  firstName: string;
+
+  @Prop()
+  lastName: string;
+
+  @Prop()
+  company: string;
+
+  @Prop()
+  profilePicture: string;
+
+  @Prop({ default: 'en' })
+  language: string;
+
+  @Prop({ default: 'UTC' })
+  timezone: string;
+
+  @Prop({ type: Object, default: { email: true, push: false } })
+  notifications: { email: boolean; push: boolean };
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
