@@ -1,7 +1,7 @@
-// @app/dashboard/settings/page.tsx
-
 "use client";
 
+import React, { useEffect, useState } from "react";
+import { apiFetch } from "@/utils/api"; // Import the reusable API helper
 import {
   Card,
   CardContent,
@@ -23,16 +23,114 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+interface SettingsData {
+  language: string;
+  timezone: string;
+  notifications: {
+    email: boolean;
+    push: boolean;
+  };
+  theme?: string; // Optional, for appearance tab
+  compactMode?: boolean;
+  animations?: boolean;
+  apiAccess?: boolean; // Added for advanced settings
+}
+
 export default function SettingsPage() {
+  const [settings, setSettings] = useState<SettingsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // State for form inputs
+  const [language, setLanguage] = useState("en");
+  const [timezone, setTimezone] = useState("utc");
+  const [marketingEmails, setMarketingEmails] = useState(false);
+  const [theme, setTheme] = useState("light");
+  const [compactMode, setCompactMode] = useState(false);
+  const [animations, setAnimations] = useState(true);
+  const [campaignAlerts, setCampaignAlerts] = useState(true);
+  const [budgetAlerts, setBudgetAlerts] = useState(true);
+  const [featureAnnouncements, setFeatureAnnouncements] = useState(true);
+  const [apiAccess, setApiAccess] = useState(true);
+
+  // Fetch initial settings from API
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const data = await apiFetch("/api/profile");
+        setSettings(data);
+        setLanguage(data.language || "en");
+        setTimezone(data.timezone || "utc");
+        setMarketingEmails(data.notifications?.email || false);
+        // Placeholder defaults for additional settings not yet in API
+        setTheme(data.theme || "light");
+        setCompactMode(data.compactMode || false);
+        setAnimations(data.animations || true);
+        setCampaignAlerts(true); // Default values for now
+        setBudgetAlerts(true);
+        setFeatureAnnouncements(true);
+        setApiAccess(true);
+      } catch (err) {
+        setError("Failed to load settings");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSettings();
+  }, []);
+
+  // Save settings to API
+  const handleSave = async (tab: string) => {
+    let updateData: Partial<SettingsData> = {};
+
+    switch (tab) {
+      case "general":
+        updateData = {
+          language,
+          timezone,
+          notifications: { email: marketingEmails, push: settings?.notifications.push || false },
+        };
+        break;
+      case "appearance":
+        updateData = { theme, compactMode, animations };
+        break;
+      case "notifications":
+        updateData = {
+          notifications: {
+            email: marketingEmails,
+            push: campaignAlerts || budgetAlerts || featureAnnouncements,
+          },
+        };
+        break;
+      case "advanced":
+        updateData = { apiAccess };
+        break;
+      default:
+        return;
+    }
+
+    try {
+      const updatedSettings = await apiFetch("/api/profile/settings", "PUT", updateData);
+      setSettings((prev) => ({ ...prev, ...updatedSettings }));
+      alert(`${tab.charAt(0).toUpperCase() + tab.slice(1)} settings saved successfully`);
+    } catch (err) {
+      alert("Failed to save settings");
+    }
+  };
+
+  if (loading) {
+    return <div>Loading settings...</div>;
+  }
+
+  if (error) {
+    return <div>{error}</div>;
+  }
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-heading text-2xl font-medium tracking-tight">
-          Settings
-        </h1>
-        <p className="text-muted-foreground">
-          Manage your account settings and preferences.
-        </p>
+        <h1 className="font-heading text-2xl font-medium tracking-tight">Settings</h1>
+        <p className="text-muted-foreground">Manage your account settings and preferences.</p>
       </div>
 
       <Tabs defaultValue="general" className="space-y-4">
@@ -66,17 +164,13 @@ export default function SettingsPage() {
         <TabsContent value="general" className="space-y-4">
           <Card className="border-black/10 shadow-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="font-heading text-lg font-medium">
-                General Settings
-              </CardTitle>
-              <CardDescription>
-                Manage your basic account settings
-              </CardDescription>
+              <CardTitle className="font-heading text-lg font-medium">General Settings</CardTitle>
+              <CardDescription>Manage your basic account settings</CardDescription>
             </CardHeader>
             <CardContent className="p-6 space-y-6">
               <div className="flex flex-col space-y-1.5">
                 <Label htmlFor="language">Language</Label>
-                <Select defaultValue="en">
+                <Select value={language} onValueChange={setLanguage}>
                   <SelectTrigger className="rounded-none border-black/20 focus:ring-0">
                     <SelectValue placeholder="Select language" />
                   </SelectTrigger>
@@ -91,7 +185,7 @@ export default function SettingsPage() {
 
               <div className="flex flex-col space-y-1.5">
                 <Label htmlFor="timezone">Timezone</Label>
-                <Select defaultValue="utc">
+                <Select value={timezone} onValueChange={setTimezone}>
                   <SelectTrigger className="rounded-none border-black/20 focus:ring-0">
                     <SelectValue placeholder="Select timezone" />
                   </SelectTrigger>
@@ -99,9 +193,7 @@ export default function SettingsPage() {
                     <SelectItem value="utc">UTC (GMT+0)</SelectItem>
                     <SelectItem value="est">Eastern Time (GMT-5)</SelectItem>
                     <SelectItem value="pst">Pacific Time (GMT-8)</SelectItem>
-                    <SelectItem value="cet">
-                      Central European Time (GMT+1)
-                    </SelectItem>
+                    <SelectItem value="cet">Central European Time (GMT+1)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -113,11 +205,18 @@ export default function SettingsPage() {
                     Receive emails about new features and updates
                   </p>
                 </div>
-                <Switch id="marketing" defaultChecked />
+                <Switch
+                  id="marketing"
+                  checked={marketingEmails}
+                  onCheckedChange={setMarketingEmails}
+                />
               </div>
             </CardContent>
             <CardFooter className="border-t border-black/10 p-6">
-              <Button className="rounded-none bg-black text-white hover:bg-black/90">
+              <Button
+                onClick={() => handleSave("general")}
+                className="rounded-none bg-black text-white hover:bg-black/90"
+              >
                 Save Changes
               </Button>
             </CardFooter>
@@ -127,34 +226,33 @@ export default function SettingsPage() {
         <TabsContent value="appearance" className="space-y-4">
           <Card className="border-black/10 shadow-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="font-heading text-lg font-medium">
-                Appearance
-              </CardTitle>
-              <CardDescription>
-                Customize how the dashboard looks
-              </CardDescription>
+              <CardTitle className="font-heading text-lg font-medium">Appearance</CardTitle>
+              <CardDescription>Customize how the dashboard looks</CardDescription>
             </CardHeader>
             <CardContent className="p-6 space-y-6">
               <div className="space-y-2">
                 <Label>Theme</Label>
                 <div className="grid grid-cols-3 gap-2">
                   <Button
-                    variant="outline"
+                    variant={theme === "light" ? "default" : "outline"}
                     className="rounded-none border-black/20 hover:bg-accent hover:text-accent-foreground justify-start px-3 py-6 h-auto"
+                    onClick={() => setTheme("light")}
                   >
                     <div className="w-4 h-4 rounded-full bg-white border border-black/20 mr-2"></div>
                     Light
                   </Button>
                   <Button
-                    variant="outline"
+                    variant={theme === "dark" ? "default" : "outline"}
                     className="rounded-none border-black/20 hover:bg-accent hover:text-accent-foreground justify-start px-3 py-6 h-auto"
+                    onClick={() => setTheme("dark")}
                   >
                     <div className="w-4 h-4 rounded-full bg-black mr-2"></div>
                     Dark
                   </Button>
                   <Button
-                    variant="outline"
+                    variant={theme === "system" ? "default" : "outline"}
                     className="rounded-none border-black/20 hover:bg-accent hover:text-accent-foreground justify-start px-3 py-6 h-auto"
+                    onClick={() => setTheme("system")}
                   >
                     <div className="w-4 h-4 rounded-full bg-gradient-to-r from-white to-black mr-2"></div>
                     System
@@ -171,7 +269,11 @@ export default function SettingsPage() {
                     Display more content on the screen
                   </p>
                 </div>
-                <Switch id="densityToggle" />
+                <Switch
+                  id="densityToggle"
+                  checked={compactMode}
+                  onCheckedChange={setCompactMode}
+                />
               </div>
 
               <div className="flex items-center justify-between">
@@ -181,11 +283,18 @@ export default function SettingsPage() {
                     Enable animations throughout the interface
                   </p>
                 </div>
-                <Switch id="animationsToggle" defaultChecked />
+                <Switch
+                  id="animationsToggle"
+                  checked={animations}
+                  onCheckedChange={setAnimations}
+                />
               </div>
             </CardContent>
             <CardFooter className="border-t border-black/10 p-6">
-              <Button className="rounded-none bg-black text-white hover:bg-black/90">
+              <Button
+                onClick={() => handleSave("appearance")}
+                className="rounded-none bg-black text-white hover:bg-black/90"
+              >
                 Save Preferences
               </Button>
             </CardFooter>
@@ -198,9 +307,7 @@ export default function SettingsPage() {
               <CardTitle className="font-heading text-lg font-medium">
                 Notification Settings
               </CardTitle>
-              <CardDescription>
-                Control when and how you receive notifications
-              </CardDescription>
+              <CardDescription>Control when and how you receive notifications</CardDescription>
             </CardHeader>
             <CardContent className="p-6">
               <div className="space-y-4">
@@ -211,7 +318,10 @@ export default function SettingsPage() {
                       Get notified when campaigns reach performance thresholds
                     </p>
                   </div>
-                  <Switch defaultChecked />
+                  <Switch
+                    checked={campaignAlerts}
+                    onCheckedChange={setCampaignAlerts}
+                  />
                 </div>
 
                 <Separator />
@@ -223,7 +333,10 @@ export default function SettingsPage() {
                       Get notified when campaigns approach budget limits
                     </p>
                   </div>
-                  <Switch defaultChecked />
+                  <Switch
+                    checked={budgetAlerts}
+                    onCheckedChange={setBudgetAlerts}
+                  />
                 </div>
 
                 <Separator />
@@ -235,12 +348,18 @@ export default function SettingsPage() {
                       Be the first to know about new features
                     </p>
                   </div>
-                  <Switch defaultChecked />
+                  <Switch
+                    checked={featureAnnouncements}
+                    onCheckedChange={setFeatureAnnouncements}
+                  />
                 </div>
               </div>
             </CardContent>
             <CardFooter className="border-t border-black/10 p-6">
-              <Button className="rounded-none bg-black text-white hover:bg-black/90">
+              <Button
+                onClick={() => handleSave("notifications")}
+                className="rounded-none bg-black text-white hover:bg-black/90"
+              >
                 Update Notifications
               </Button>
             </CardFooter>
@@ -253,9 +372,7 @@ export default function SettingsPage() {
               <CardTitle className="font-heading text-lg font-medium">
                 Advanced Settings
               </CardTitle>
-              <CardDescription>
-                Configure advanced options for your account
-              </CardDescription>
+              <CardDescription>Configure advanced options for your account</CardDescription>
             </CardHeader>
             <CardContent className="p-6 space-y-6">
               <div className="flex items-center justify-between">
@@ -265,7 +382,7 @@ export default function SettingsPage() {
                     Enable API access for third-party integrations
                   </p>
                 </div>
-                <Switch defaultChecked />
+                <Switch checked={apiAccess} onCheckedChange={setApiAccess} />
               </div>
 
               <Separator />
@@ -306,6 +423,14 @@ export default function SettingsPage() {
                 </Button>
               </div>
             </CardContent>
+            <CardFooter className="border-t border-black/10 p-6">
+              <Button
+                onClick={() => handleSave("advanced")}
+                className="rounded-none bg-black text-white hover:bg-black/90"
+              >
+                Save Changes
+              </Button>
+            </CardFooter>
           </Card>
         </TabsContent>
       </Tabs>

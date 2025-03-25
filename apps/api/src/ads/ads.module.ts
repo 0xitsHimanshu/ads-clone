@@ -10,5 +10,6 @@ import { Ad, AdSchema } from './ad.schema';
   imports: [MongooseModule.forFeature([{ name: Ad.name, schema: AdSchema }])],
   controllers: [AdsController],
   providers: [AdsService],
+  exports: [AdsService]
 })
 export class AdsModule {}
